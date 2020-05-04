@@ -55,7 +55,7 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
 
 impl<IT, N> SlidingWindow<IT, N>
     where N: Size<IT> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             items: GenericArray::default(),
             write_idx: 0
