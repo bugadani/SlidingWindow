@@ -8,7 +8,7 @@ pub trait Producer {
     type Item;
 
     fn clear(&mut self);
-    fn insert(&mut self, t: Self::Item);
+    fn insert(&mut self, t: Self::Item) -> Option<Self::Item>;
 }
 
 pub trait Reader {
@@ -67,13 +67,15 @@ impl<IT, N> Producer for SlidingWindow<IT, N>
     where N: Size<IT> {
     type Item = IT;
 
-    fn insert(&mut self, t: Self::Item) {
-        self.items[self.write_idx] = Some(t);
+    fn insert(&mut self, t: Self::Item) -> Option<Self::Item> {
+        let old = self.items[self.write_idx].replace(t);
         if self.write_idx == N::to_usize() - 1 {
             self.write_idx = 0;
         } else {
             self.write_idx += 1;
         }
+
+        old
     }
 
     fn clear(&mut self) {
@@ -129,12 +131,12 @@ mod test {
         assert_eq!(3, sw.count());
         assert_eq!(false, sw.full());
 
-        sw.insert(4);
+        assert_eq!(None, sw.insert(4));
 
         assert_eq!(4, sw.count());
         assert_eq!(true, sw.full());
 
-        sw.insert(5);
+        assert_eq!(Some(1), sw.insert(5));
 
         assert_eq!(4, sw.count());
         assert_eq!(true, sw.full());
