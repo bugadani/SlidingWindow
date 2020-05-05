@@ -17,7 +17,8 @@ pub trait Reader {
 
     fn full(&self) -> bool;
     fn count(&self) -> usize;
-    fn iter(&mut self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item>;
+    fn iter(&self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item>;
+    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item>;
 }
 
 use generic_array::{GenericArray, ArrayLength};
@@ -41,9 +42,31 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
     where N: Size<IT> {
     type Item = &'a IT;
 
-    fn next(&mut self) -> Option<&'a IT> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.offset < self.window.count() {
             let read_from = (self.start + self.offset) % N::to_usize();
+            self.offset += 1;
+
+            self.window.items[read_from].as_ref()
+        } else {
+            None
+        }
+    }
+}
+
+pub struct UnorderedIter<'a, IT, N>
+    where N: Size<IT> {
+    window: &'a SlidingWindow<IT, N>,
+    offset: usize
+}
+
+impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
+    where N: Size<IT> {
+    type Item = &'a IT;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.offset < self.window.count() {
+            let read_from = self.offset;
             self.offset += 1;
 
             self.window.items[read_from].as_ref()
@@ -106,10 +129,17 @@ impl<IT, N> Reader for SlidingWindow<IT, N>
         }
     }
 
-    fn iter(&mut self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
+    fn iter(&self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
         Iter {
             window: self,
             start: if self.full() { self.write_idx } else { 0 },
+            offset: 0
+        }
+    }
+
+    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
+        UnorderedIter {
+            window: self,
             offset: 0
         }
     }
@@ -149,13 +179,31 @@ mod test {
 
     #[test]
     fn iter() {
-
         let mut sw: SlidingWindow<_, U4> = SlidingWindow::new();
 
         sw.insert(1);
         sw.insert(2);
         sw.insert(3);
+        sw.insert(4);
+        sw.insert(5);
+        sw.insert(6);
 
-        assert_eq!(6, sw.iter().sum());
+        assert_eq!(&3, sw.iter().next().unwrap()); // first element is the oldest
+        assert_eq!(18, sw.iter().sum());
+    }
+
+    #[test]
+    fn unordered_iter() {
+        let mut sw: SlidingWindow<_, U4> = SlidingWindow::new();
+
+        sw.insert(1);
+        sw.insert(2);
+        sw.insert(3);
+        sw.insert(4);
+        sw.insert(5);
+        sw.insert(6);
+
+        assert_eq!(&5, sw.iter_unordered().next().unwrap()); // first element is not the oldest
+        assert_eq!(18, sw.iter_unordered().sum());
     }
 }
