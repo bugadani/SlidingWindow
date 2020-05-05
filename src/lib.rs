@@ -35,7 +35,8 @@ pub struct Iter<'a, IT, N>
     where N: Size<IT> {
     window: &'a SlidingWindow<IT, N>,
     start: usize,
-    offset: usize
+    offset: usize,
+    count: usize
 }
 
 impl<'a, IT, N> Iterator for Iter<'a, IT, N>
@@ -43,7 +44,7 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
     type Item = &'a IT;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset < self.window.count() {
+        if self.offset < self.count {
             let read_from = (self.start + self.offset) % N::to_usize();
             self.offset += 1;
 
@@ -57,7 +58,8 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
 pub struct UnorderedIter<'a, IT, N>
     where N: Size<IT> {
     window: &'a SlidingWindow<IT, N>,
-    offset: usize
+    offset: usize,
+    count: usize
 }
 
 impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
@@ -65,7 +67,7 @@ impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
     type Item = &'a IT;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset < self.window.count() {
+        if self.offset < self.count {
             let read_from = self.offset;
             self.offset += 1;
 
@@ -133,14 +135,16 @@ impl<IT, N> Reader for SlidingWindow<IT, N>
         Iter {
             window: self,
             start: if self.full() { self.write_idx } else { 0 },
-            offset: 0
+            offset: 0,
+            count: self.count()
         }
     }
 
     fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
         UnorderedIter {
             window: self,
-            offset: 0
+            offset: 0,
+            count: self.count()
         }
     }
 }
