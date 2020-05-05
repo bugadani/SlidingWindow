@@ -2,6 +2,7 @@
 //!
 #![cfg_attr(not(test), no_std)]
 
+pub use generic_array::typenum;
 pub use generic_array::typenum::consts;
 
 pub trait Producer {
