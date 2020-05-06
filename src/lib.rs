@@ -32,6 +32,21 @@ pub struct SlidingWindow<IT, N>
     write_idx: usize
 }
 
+impl<IT, N> core::ops::Index<usize> for SlidingWindow<IT, N>
+    where
+        N: Size<IT> {
+    type Output = IT;
+    fn index(&self, idx: usize) -> &Self::Output {
+        let read_from = if self.full() {
+            (self.write_idx + idx) % N::to_usize()
+        } else {
+            idx % N::to_usize()
+        };
+
+        self.items[read_from].as_ref().unwrap()
+    }
+}
+
 pub struct Iter<'a, IT, N>
     where N: Size<IT> {
     window: &'a SlidingWindow<IT, N>,
@@ -156,23 +171,27 @@ mod test {
     use super::consts::*;
 
     #[test]
-    fn count() {
+    fn basics() {
         let mut sw: SlidingWindow<_, U4> = SlidingWindow::new();
 
         sw.insert(1);
         sw.insert(2);
         sw.insert(3);
 
+        assert_eq!(1, sw[0]);
+
         assert_eq!(3, sw.count());
         assert_eq!(false, sw.full());
 
         assert_eq!(None, sw.insert(4));
 
+        assert_eq!(1, sw[0]);
         assert_eq!(4, sw.count());
         assert_eq!(true, sw.full());
 
         assert_eq!(Some(1), sw.insert(5));
 
+        assert_eq!(2, sw[0]);
         assert_eq!(4, sw.count());
         assert_eq!(true, sw.full());
 
