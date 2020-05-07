@@ -14,12 +14,12 @@ pub trait Producer {
 
 pub trait Reader {
     type Item;
-    type WindowSize;
+    type WindowSize: Size<Self::Item>;
 
     fn full(&self) -> bool;
     fn count(&self) -> usize;
-    fn iter(&self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item>;
-    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item>;
+    fn iter(&self) -> Iter<Self::Item, Self::WindowSize>;
+    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize>;
 }
 
 use generic_array::{GenericArray, ArrayLength};
@@ -147,7 +147,7 @@ impl<IT, N> Reader for SlidingWindow<IT, N>
         }
     }
 
-    fn iter(&self) -> Iter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
+    fn iter(&self) -> Iter<Self::Item, Self::WindowSize> {
         Iter {
             window: self,
             start: if self.full() { self.write_idx } else { 0 },
@@ -156,7 +156,7 @@ impl<IT, N> Reader for SlidingWindow<IT, N>
         }
     }
 
-    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> where Self::WindowSize: Size<Self::Item> {
+    fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> {
         UnorderedIter {
             window: self,
             offset: 0,
