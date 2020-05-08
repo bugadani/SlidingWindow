@@ -1,7 +1,9 @@
-SlidingWindow
+SlidingWindow [![crates.io](https://img.shields.io/crates/v/sliding_window.svg)](https://crates.io/crates/sliding_window)
 =============
 
 Sliding windows are used to hold the N most recent samples of a data stream.
+
+[Documentation](https://docs.rs/sliding_window/0.1.0/sliding_window/)
 
 Example
 -------
