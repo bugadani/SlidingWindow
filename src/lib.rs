@@ -133,8 +133,7 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
 pub struct UnorderedIter<'a, IT, N>
     where N: Size<IT> {
     window: &'a SlidingWindow<IT, N>,
-    offset: usize,
-    count: usize
+    offset: usize
 }
 
 impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
@@ -142,11 +141,10 @@ impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
     type Item = &'a IT;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset < self.count {
-            let read_from = self.offset;
-            self.offset += 1;
+        if self.offset > 0 {
+            self.offset -= 1;
 
-            self.window.items[read_from].as_ref()
+            self.window.items[self.offset].as_ref()
         } else {
             None
         }
@@ -214,8 +212,7 @@ impl<IT, N> Reader for SlidingWindow<IT, N>
     fn iter_unordered(&self) -> UnorderedIter<Self::Item, Self::WindowSize> {
         UnorderedIter {
             window: self,
-            offset: 0,
-            count: self.count()
+            offset: self.count()
         }
     }
 }
@@ -282,7 +279,6 @@ mod test {
         sw.insert(5);
         sw.insert(6);
 
-        assert_eq!(&5, sw.iter_unordered().next().unwrap()); // first element is not the oldest
         assert_eq!(18, sw.iter_unordered().sum());
     }
 }
