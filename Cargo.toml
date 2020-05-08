@@ -1,8 +1,15 @@
 [package]
 name = "sliding_window"
 version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/bugadani/SlidingWindow"
+description = "A fixed size, heapless sliding window"
 authors = ["Dániel Buga <bugadani@gmail.com>"]
 edition = "2018"
+categories = ["no_std", "data-structures"]
+exclude = [
+    ".github/*",
+]
 
 [dependencies]
 generic-array="^0.14"
