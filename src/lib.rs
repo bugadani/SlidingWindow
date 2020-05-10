@@ -142,6 +142,21 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.count - self.offset;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a, IT, N> ExactSizeIterator for Iter<'a, IT, N>
+    where N:
+        Size<IT> {
+    fn len(&self) -> usize {
+        let (lower, upper) = self.size_hint();
+        debug_assert_eq!(upper, Some(lower));
+        lower
+    }
 }
 
 /// Read-only iterator that does not respect the order of insertion.
@@ -165,6 +180,21 @@ impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
         } else {
             None
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.offset;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a, IT, N> ExactSizeIterator for UnorderedIter<'a, IT, N>
+    where N:
+        Size<IT> {
+    fn len(&self) -> usize {
+        let (lower, upper) = self.size_hint();
+        debug_assert_eq!(upper, Some(lower));
+        lower
     }
 }
 
@@ -285,6 +315,21 @@ mod test {
 
         assert_eq!(&3, sw.iter().next().unwrap()); // first element is the oldest
         assert_eq!(18, sw.iter().sum());
+
+        let mut ordered = sw.iter();
+        let mut unordered = sw.iter_unordered();
+
+        assert_eq!(4, ordered.len());
+        assert_eq!(4, unordered.len());
+
+        ordered.next();
+        ordered.next();
+
+        unordered.next();
+        unordered.next();
+
+        assert_eq!(2, ordered.len());
+        assert_eq!(2, unordered.len());
     }
 
     #[test]
