@@ -227,10 +227,7 @@ impl<IT, N> SlidingWindow<IT, N>
 
     /// Returns `true` if the window is full.
     pub fn is_full(&self) -> bool {
-        match self.items[self.write_idx] {
-            Some(_) => true,
-            None => false
-        }
+        self.items[self.write_idx].is_some()
     }
 
     /// Returns the number of elements stored in the window.
