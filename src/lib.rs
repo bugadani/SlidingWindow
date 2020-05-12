@@ -108,9 +108,9 @@ impl<IT, N> core::ops::Index<usize> for SlidingWindow<IT, N>
     type Output = IT;
     fn index(&self, idx: usize) -> &Self::Output {
         let read_from = if self.is_full() {
-            self.write_idx.wrapping_add_limited(idx, N::to_usize())
+            self.write_idx.wrapping_add_limited(idx, N::USIZE)
         } else {
-            idx % N::to_usize()
+            idx % N::USIZE
         };
 
         self.items[read_from].as_ref().unwrap()
@@ -134,7 +134,7 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset < self.count {
-            let read_from = self.start.wrapping_add_limited(self.offset, N::to_usize());
+            let read_from = self.start.wrapping_add_limited(self.offset, N::USIZE);
             self.offset += 1;
 
             self.window.items[read_from].as_ref()
@@ -215,7 +215,7 @@ impl<IT, N> SlidingWindow<IT, N>
     /// If the window is full, this method will remove and return the oldest element.
     pub fn insert(&mut self, t: IT) -> Option<IT> {
         let old = self.items[self.write_idx].replace(t);
-        self.write_idx = self.write_idx.wrapping_add1_limited(N::to_usize());
+        self.write_idx = self.write_idx.wrapping_add1_limited(N::USIZE);
 
         old
     }
@@ -233,7 +233,7 @@ impl<IT, N> SlidingWindow<IT, N>
     /// Returns the number of elements stored in the window.
     pub fn count(&self) -> usize {
         if self.is_full() {
-            N::to_usize()
+            N::USIZE
         } else {
             self.write_idx
         }
