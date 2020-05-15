@@ -85,21 +85,35 @@ mod wrapping {
     }
 }
 
-use generic_array::{GenericArray, ArrayLength};
+use generic_array::{GenericArray, ArrayLength, sequence::GenericSequence};
 use wrapping::WrappingExt as _;
+use core::mem::MaybeUninit;
 
-pub trait Size<I>: ArrayLength<Option<I>> {}
-impl<T, I> Size<I> for T where T: ArrayLength<Option<I>> {}
+pub trait Size<I>: ArrayLength<MaybeUninit<I>> {}
+impl<T, I> Size<I> for T where T: ArrayLength<MaybeUninit<I>> {}
 
 /// A sliding window.
 ///
 /// Sliding windows are queues that overwrite their oldest data when full.
-#[derive(Default)]
 pub struct SlidingWindow<IT, N>
     where
         N: Size<IT> {
-    items: GenericArray<Option<IT>, N>,
-    write_idx: usize
+    items: GenericArray<MaybeUninit<IT>, N>,
+    write_idx: usize,
+    is_full: bool
+}
+
+impl<IT, N> Default for SlidingWindow<IT, N>
+    where
+        N: Size<IT> {
+
+    fn default() -> Self {
+        Self {
+            items: GenericArray::generate(|_| MaybeUninit::uninit()),
+            write_idx: 0,
+            is_full: false
+        }
+    }
 }
 
 impl<IT, N> core::ops::Index<usize> for SlidingWindow<IT, N>
@@ -107,13 +121,14 @@ impl<IT, N> core::ops::Index<usize> for SlidingWindow<IT, N>
         N: Size<IT> {
     type Output = IT;
     fn index(&self, idx: usize) -> &Self::Output {
-        let read_from = if self.is_full() {
+        let read_from = if self.is_full {
             self.write_idx.wrapping_add_limited(idx, N::USIZE)
         } else {
-            idx % N::USIZE
+            assert!(idx < self.write_idx, "Trying to access uninitialized memory");
+            idx
         };
 
-        self.items[read_from].as_ref().unwrap()
+        unsafe { &*self.items[read_from].as_ptr() }
     }
 }
 
@@ -137,7 +152,7 @@ impl<'a, IT, N> Iterator for Iter<'a, IT, N>
             let read_from = self.start.wrapping_add_limited(self.offset, N::USIZE);
             self.offset += 1;
 
-            self.window.items[read_from].as_ref()
+            Some(unsafe { &*self.window.items[read_from].as_ptr() })
         } else {
             None
         }
@@ -176,7 +191,7 @@ impl<'a, IT, N> Iterator for UnorderedIter<'a, IT, N>
         if self.offset > 0 {
             self.offset -= 1;
 
-            self.window.items[self.offset].as_ref()
+            Some(unsafe { &*self.window.items[self.offset].as_ptr() })
         } else {
             None
         }
@@ -204,35 +219,50 @@ impl<IT, N> SlidingWindow<IT, N>
 
     /// Returns an empty sliding window object.
     pub fn new() -> Self {
-        Self {
-            items: GenericArray::default(),
-            write_idx: 0
-        }
+        Self::default()
     }
 
     /// Insert an element into the window.
     ///
     /// If the window is full, this method will remove and return the oldest element.
     pub fn insert(&mut self, t: IT) -> Option<IT> {
-        let old = self.items[self.write_idx].replace(t);
-        self.write_idx = self.write_idx.wrapping_add1_limited(N::USIZE);
+        let new: MaybeUninit<IT> = MaybeUninit::new(t);
 
-        old
+        if !self.is_full {
+            self.items[self.write_idx] = new;
+            if self.write_idx == N::USIZE - 1 {
+                self.write_idx = 0;
+                self.is_full = true;
+            } else {
+                self.write_idx += 1;
+            }
+            None
+        } else {
+            let old = core::mem::replace(&mut self.items[self.write_idx], new);
+            self.write_idx = self.write_idx.wrapping_add1_limited(N::USIZE);
+
+            Some(unsafe { old.assume_init() })
+        }
     }
 
     /// Removes all elements from the window.
     pub fn clear(&mut self) {
+        let count = self.count();
+        for elem in &mut self.items[0..count] {
+            unsafe { core::ptr::drop_in_place(elem.as_mut_ptr()); }
+        }
+
         *self = Self::new();
     }
 
     /// Returns `true` if the window is full.
     pub fn is_full(&self) -> bool {
-        self.items[self.write_idx].is_some()
+        self.is_full
     }
 
     /// Returns the number of elements stored in the window.
     pub fn count(&self) -> usize {
-        if self.is_full() {
+        if self.is_full {
             N::USIZE
         } else {
             self.write_idx
@@ -341,5 +371,17 @@ mod test {
         sw.insert(6);
 
         assert_eq!(18, sw.iter_unordered().sum());
+    }
+
+    #[test]
+    #[should_panic(expected = "Trying to access uninitialized memory")]
+    fn index_to_uninited() {
+        let mut sw: SlidingWindow<_, U4> = SlidingWindow::new();
+
+        sw.insert(1);
+        sw.insert(2);
+        sw.insert(3);
+
+        sw[3];
     }
 }
