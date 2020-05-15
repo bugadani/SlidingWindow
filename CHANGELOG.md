@@ -1,4 +1,4 @@
-Unreleased
+0.1.2
 ==========
 
 * Improve memory usage for windows where `Option<T>` is not optimized
